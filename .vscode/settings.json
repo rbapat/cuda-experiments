@@ -55,6 +55,8 @@
         "ratio": "cpp",
         "regex": "cpp",
         "shared_mutex": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "complex": "cpp",
+        "mutex": "cpp"
     }
 }
