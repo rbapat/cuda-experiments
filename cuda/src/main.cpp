@@ -3,12 +3,14 @@
 
 #include "argparse.h"
 #include "matmul.cuh"
+#include "montecarlo.cuh"
 
 int main(int argc, char* argv[]) {
     args::Parser ap;
 
     ap.registerOption("naive_matmul", "int(number of times to execute)", "int(size of matrix)", "int(threads per block)");
     ap.registerOption("cublas_matmul", "int(number of times to execute)", "int(size of matrix)", "int(threads per block)");
+    ap.registerOption("monte_carlo_pi", "int(number of reps)", "int(number of samples)", "int(threads per block)");
     auto opType = ap.parseArguments(argc, argv);
     
     // TODO: use enums or hashing to avoid string comparison
@@ -17,6 +19,9 @@ int main(int argc, char* argv[]) {
         std::cout << "Operation took " << avgTimeUs << " us on average" << std::endl;
     } else if (!opType.compare("cublas_matmul")) {
         float avgTimeUs = matmul::cublas::time_execution(ap.get<int>(0), ap.get<int>(1), ap.get<int>(2));
+        std::cout << "Operation took " << avgTimeUs << " us on average" << std::endl;
+    } else if (!opType.compare("monte_carlo_pi")) {
+        float avgTimeUs = montecarlo::time_pi_estimate(ap.get<int>(0), ap.get<int>(1), ap.get<int>(2));
         std::cout << "Operation took " << avgTimeUs << " us on average" << std::endl;
     }
 

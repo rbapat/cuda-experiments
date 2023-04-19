@@ -57,6 +57,7 @@
         "shared_mutex": "cpp",
         "thread": "cpp",
         "complex": "cpp",
-        "mutex": "cpp"
+        "mutex": "cpp",
+        "set": "cpp"
     }
 }
