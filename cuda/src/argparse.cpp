@@ -5,7 +5,8 @@ namespace args {
 
     }
 
-    ParamValue Parser::getParam(char* paramStr, Param* param) {
+    ParamValue Parser::getParam(const char* paramStr, Param* param) {
+        
         // TODO: make this faster with some hashing or store as enum
         ParamValue v;
         if (!param->type.compare("int")) {
@@ -21,11 +22,11 @@ namespace args {
 
     void Parser::parseOperation(std::vector<Param*>& options, char* argv[]) {
         for (size_t i = 0; i < options.size(); i++) {
-            matched_params[i] = getParam(argv[i], options[i]);
+            matched_params.push_back(getParam(argv[i], options[i]));
         }
     }
 
-    const char* Parser::parseArguments(size_t argc, char* argv[]) {
+    std::string_view Parser::parseArguments(size_t argc, char* argv[]) {
         if (argc < 2) {
             throw std::runtime_error("Not enough args");
         }
@@ -35,14 +36,14 @@ namespace args {
             printHelp();
             return "help";
         }
-        std::cout << type << std::endl;
+
         auto it = options.find(type);
         if (it == options.end()) {
             throw std::runtime_error("Param type not found");
         }
 
         if (argc - 2 != it->second.size()) {
-            throw std::runtime_error("Not enough parameters");
+            throw std::runtime_error("Too many or too little parameters");
         }
 
         parseOperation(it->second, argv + 2);
@@ -50,7 +51,7 @@ namespace args {
     }
 
     void Parser::printHelp() {
-        std::cout << "Available parameters: " << std::endl;
+        std::cout << "Available options: " << std::endl;
 
         for (auto& [opType, opParams] : options) {
             std::cout << opType << " ";

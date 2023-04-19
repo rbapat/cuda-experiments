@@ -25,7 +25,7 @@ namespace args {
         Parser();
 
         template<class... Args>
-        void registerOption(const char* type, Args... args) {
+        void registerOption(std::string_view type, Args... args) {
             auto it = options.find(type);
             if (it != options.end()) {
                 throw std::runtime_error("Duplicate option registered");
@@ -45,14 +45,14 @@ namespace args {
             return (T)matched_params[idx].span8bytes;
         }
 
-        const char* parseArguments(size_t argc, char* argv[]);
+        std::string_view parseArguments(size_t argc, char* argv[]);
     private:
-        std::unordered_map<const char*, std::vector<Param*>> options;
+        std::unordered_map<std::string_view, std::vector<Param*>> options;
         std::vector<ParamValue> matched_params;
 
         Param* splitParameter(const char* p);
         void printHelp();
         void parseOperation(std::vector<Param*>& options, char* argv[]);
-        ParamValue getParam(char* paramStr, Param* param);
+        ParamValue getParam(const char* paramStr, Param* param);
     };
 }

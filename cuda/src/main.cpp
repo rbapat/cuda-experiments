@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
     auto opType = ap.parseArguments(argc, argv);
     
     // TODO: use enums or hashing to avoid string comparison
-    if (!strcmp(opType, "matmul")) {
+    if (!opType.compare("matmul")) {
         matmul(ap.get<int>(0), ap.get<int>(1));
     }
 
