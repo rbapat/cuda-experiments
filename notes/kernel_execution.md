@@ -1,0 +1,21 @@
+- Cuda kernels are launched with the syntax `kernel<<<gridShape, blockShape, shmemSize, stream>>>(params)`
+    - *gridShape* defines the dimensions of the grid, such that there are `gridShape.x * gridShape.y * gridShape.z` blocks being launched
+    - *blockShape* defines the dimensions of each block being launched, such that there are `blockShape.x * blockShape.y * blockShape.z` threads per block being launched
+    - *shmemSize* is how much dynamically allocated memory (in addition to static) to be allocated for the kernel. The kernel will reference this dyn shmem using the keyword `extern`
+    - *stream* is the handle of the stream to do computations on
+- Thread execution
+    - threads within a block are grouped together to form the lowest level of execution called a warp (threads in a warp are executed in lockstep)
+        - execution context is for each warp is stored on-chip for the streaming multiprocessors (SMs), so we have very fast context switches between warps and warps that are ready to execute will always be scheduled to run by the warp scheduler
+    - If the current warp is stalled due to longer operations or synchronization, we always want to have another warp ready to execute. We accomplish this by preventing low occupancy -- the ratio of active warps to total number of possible active warps
+        - High occupancy isn't always great, can come at the cost of register pressure or lower memory bandwidth
+    - We want to select the right number of blocks and threads to keep the GPU busy (have enough warps to prevent low occupancy)
+        - number of blocks in a grid should be greater than the number of multiprocessors, and have multiple active blocks per multiprocessor to hide calls to `__syncthreads`
+        - [128, 256] is a good range of threads per block to use while experimenting with the number of blocks, but try to have a minimum of 64 (and always multiple of 32)
+        - Several small thread blocks is good if latency affects performance (i.e. if we are calling `__syncthreads` a lot)
+- For my RTX 3060 TI (Ampere, Compute Capability 8.6)
+    - Factors influencing warp occupancy:
+        - 38 streaming multiprocessors
+        - 64,000 32-bit registers per SM, and max of 255 registers per thread
+        - a maximum of 16 thread blocks per SM
+        - shmem maximum capacity of 100 KB, and a maximum of 99KB per thread block
+    

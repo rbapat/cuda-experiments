@@ -8,7 +8,7 @@ def compute_pi(num_points, device):
     return 4 * num_in_circle / num_points
 
 def main():
-    N = 100000
+    N = 524288
     device = torch.device('cuda')
 
     t0 = benchmark.Timer(

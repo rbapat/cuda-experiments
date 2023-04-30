@@ -1,15 +1,44 @@
-#include "matrix.h"
-#include <cuda_runtime.h>
+#pragma once
 #include <cublas_v2.h>
+#include <cuda_runtime.h>
+
+#include "benchmark.h"
+#include "matrix.h"
 
 namespace matmul {
 
-    namespace naive {
-        __global__ void matmul_kernel(float* mat1, float* mat2, float *out, int matrixSize);
-        float time_execution(int num_times, int matrixSize, int tpb);
-    }
+class Naive : public benchmark::TimedAlgorithm {
+ public:
+  Naive(int _matrixDim, int _threadsPerBlock);
+  void calculate();
+  std::string_view getName();
+  ~Naive();
 
-    namespace cublas {
-        float time_execution(int numTimes, int matrixSize, int tpb);
-    }
-}
+ private:
+  int matrixDim;
+  int threadsPerBlock;
+
+  float* mat1;
+  float* mat2;
+  float* out;
+};
+
+class Cublas : public benchmark::TimedAlgorithm {
+ public:
+  Cublas(int _matrixDim, int _threadsPerBlock);
+  std::string_view getName();
+  void calculate();
+  ~Cublas();
+
+ private:
+  int matrixDim;
+  int threadsPerBlock;
+
+  float* mat1;
+  float* mat2;
+  float* out;
+
+  cublasHandle_t handle;
+  const float alpha, beta;
+};
+}  // namespace matmul

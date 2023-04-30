@@ -2,28 +2,43 @@
 #include <unordered_map>
 
 #include "argparse.h"
+#include "benchmark.h"
 #include "matmul.cuh"
 #include "montecarlo.cuh"
 
+benchmark::TimedAlgorithm* getAlgorithm(args::Parser* ap, int argc,
+                                        char* argv[]) {
+  std::string_view opType = ap->parseArguments(argc, argv);
+
+  // TODO: not important, but use enums or hashing to avoid string comparison
+  if (!opType.compare("naive_matmul")) {
+    return new matmul::Naive(ap->get<int>(0), ap->get<int>(1));
+  } else if (!opType.compare("cublas_matmul")) {
+    return new matmul::Cublas(ap->get<int>(0), ap->get<int>(1));
+  } else if (!opType.compare("monte_carlo_pi")) {
+    return new montecarlo::Naive(ap->get<int>(0), ap->get<int>(1),
+                                 ap->get<int>(2));
+  }
+
+  return nullptr;
+}
 int main(int argc, char* argv[]) {
-    args::Parser ap;
+  args::Parser ap;
 
-    ap.registerOption("naive_matmul", "int(number of times to execute)", "int(size of matrix)", "int(threads per block)");
-    ap.registerOption("cublas_matmul", "int(number of times to execute)", "int(size of matrix)", "int(threads per block)");
-    ap.registerOption("monte_carlo_pi", "int(number of reps)", "int(number of samples)", "int(threads per block)");
-    auto opType = ap.parseArguments(argc, argv);
-    
-    // TODO: use enums or hashing to avoid string comparison
-    if (!opType.compare("naive_matmul")) {
-        float avgTimeUs = matmul::naive::time_execution(ap.get<int>(0), ap.get<int>(1), ap.get<int>(2));
-        std::cout << "Operation took " << avgTimeUs << " us on average" << std::endl;
-    } else if (!opType.compare("cublas_matmul")) {
-        float avgTimeUs = matmul::cublas::time_execution(ap.get<int>(0), ap.get<int>(1), ap.get<int>(2));
-        std::cout << "Operation took " << avgTimeUs << " us on average" << std::endl;
-    } else if (!opType.compare("monte_carlo_pi")) {
-        float avgTimeUs = montecarlo::time_pi_estimate(ap.get<int>(0), ap.get<int>(1), ap.get<int>(2));
-        std::cout << "Operation took " << avgTimeUs << " us on average" << std::endl;
-    }
+  ap.registerOption("naive_matmul", "int(size of matrix)",
+                    "int(threads per block)");
+  ap.registerOption("cublas_matmul", "int(size of matrix)",
+                    "int(threads per block)");
+  ap.registerOption("monte_carlo_pi", "int(number of samples)",
+                    "int(blocks per grid)", "int(threads per block)");
 
-    return 0;
+  auto algo = getAlgorithm(&ap, argc, argv);
+
+  constexpr int numReps = 100;
+  float avgTimeUs = benchmark::time_algorithm(algo, numReps);
+
+  std::cout << algo->getName() << " took " << avgTimeUs
+            << " microseconds on average" << std::endl;
+
+  return 0;
 }
