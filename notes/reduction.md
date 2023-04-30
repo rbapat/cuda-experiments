@@ -1,0 +1,36 @@
+- Parallel reduction studies the best way to reduce an array of data into one value, such as summing an array
+    - Cooperative groups are used to achieve this optimally
+- [This link has 9 kernels that are iteratively improved to do sum reduction](https://github.com/NVIDIA/cuda-samples/blob/master/Samples/2_Concepts_and_Techniques/reduction/reduction_kernel.cu), and is also explained in [this slightly outdated webinar](https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf)
+    - kernel 0
+        - Loads chunk of array (indexed by TID) to shared memory, and syncs block (waits for all threads in block to finish)
+        - Each thread performs the reduction: `arr[i] = arr[i] + arr[i+N]` for $N \in {1, 2, 4, ...}$, and then syncs again
+        - Inefficient because of modulus operator, doesn't take advantage of memory coalescing, if statement causes frequent divergence
+    - kernel 1
+        - Same as kernel 0, but removes the divergent if-statement and modulus operator
+    - kernel 2
+        - Same as kernel 1, but makes memory access sequential to use memory coalescing and resolve memory bank conflicts
+        - Why does this resolve bank conflicts?
+            - Shared memory is split into 32 4-byte memory banks, and because we are using strided access, two different threads can hit the same memory bank (for example when stride is 32). In sequential access, we always hit different banks
+    - kernel 3
+        - Same as kernel 2, but will perform the first sum when loading the data into shared memory in the beginning. This means we use half as many threads
+            - Because this sum has a logarithmic runtime, unrolling this first loop iterations means we only need half as many threads
+    - kernel 4
+        - To further optimize, we can unroll the final loop to avoid one of the if-statements and `__syncthreads` operations. Specifically, if we only have $\leq 32$ threads executing (last 4 loop iterations, one warp), then we can manually unroll this loop. We can use the [`shfl` operations released with kepler](https://developer.nvidia.com/blog/faster-parallel-reductions-kepler/) to do this fast.
+    - kernel 5
+        - For this iteration, we take the idea of loop unrolling and apply it to all of the other iterations. Because we know block size is upper bounded by 1024 threads per block (512 in this example), then we can just manually write each loop iteration (if statement to check bounds, sum reduction, and then sync).
+        - We use templates so all math/logic on the blocksize is done at compile-time, and then this kernel is executed within a large switch statement
+    - kernel 6
+        - I'm a little unclear about the reasoning behind this optimization but instead of summing two values at the beginning (when we unrolled the first loop), we will add several values together based on the grid size
+    - kernel 7
+        - Replaces loop unrolling with more warp-level operations
+            - After summing several values from input array and adding it to shared memory, each warp will reduce its memory and then load the result into shared memory. Final block-level sum is calculated by doing this again
+    - kernel 8
+        - Very cooperative-group focused rewrite of previous kernels
+        - We load data from input array into shmem. If we launch where `numThreads * numBlocks < N`, then each thread sums every `numThreads * numBlocks` value and loads it into shmem. This means that after this point, we just need to do a parallel sum of all threads shmem
+        - We do similar steps to kernel 4 where we do sequential sums or parts of the array, and then load it into shmem. Once we get to warp-level reductions, we do a similar unrolled reduction (handled by cooperative_groups::reduce)
+    - kernel 9
+        - Creates a tiled partition defined by $\frac{numThreadsPerBlock}{2}$
+        - Loads multiple values per thread like introduced in kernel 6, and then uses cooperative_grous::reduce to sum the tiled partition 
+
+        
+        
