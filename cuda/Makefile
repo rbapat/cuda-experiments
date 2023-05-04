@@ -1,6 +1,8 @@
+CUDA_HOME = /usr/local/cuda
+
 NVCC=nvcc
 NVCC_FLAGS= -std=c++17 # -Wall -Wextra -pedantic -std=c++17 -L/usr/local/cuda/lib64 -lcuda -lcudart -lcublas
-NVCC_LIBS= -lcublas
+NVCC_LIBS= -L$(CUDA_HOME)/lib64 -lcublas -lcudnn
 
 SRCDIR = src
 INCDIR = include 
@@ -12,7 +14,7 @@ OBJS = $(patsubst $(SRCDIR)/%.cpp,$(BINDIR)/%.o,$(SRCS))
 CU_SRCS = $(wildcard $(SRCDIR)/*.cu)
 CU_OBJS = $(patsubst $(SRCDIR)/%.cu,$(BINDIR)/%.o,$(CU_SRCS))
 
-INC = -I $(INCDIR)
+INC = -I $(INCDIR) -I /usr/local/cuda/include
 
 EXE = out
 TARGET = $(BINDIR)/${EXE}
