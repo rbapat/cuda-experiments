@@ -2,6 +2,10 @@
 
 namespace mnist {
 
+int64_t makeId(char parentName, char opName, char varName) {
+  return (parentName << 16) + (opName << 8) + varName;
+}
+
 cudnn_frontend::ExecutionPlan getPlanFromHeuristics(
     cudnn_frontend::OperationGraph& opGraph, cudnnHandle_t handle) {
   auto heuristics = cudnn_frontend::EngineHeuristicsBuilder()
@@ -9,9 +13,11 @@ cudnn_frontend::ExecutionPlan getPlanFromHeuristics(
                         .setHeurMode(CUDNN_HEUR_MODE_INSTANT)
                         .build();
 
+  std::cout << "got heur: " << heuristics.getEngineConfigCount() << std::endl;
   auto& engine_config =
       heuristics.getEngineConfig(heuristics.getEngineConfigCount());
 
+  std::cout << "engine config" << std::endl;
   auto plan_builder = [&]() -> cudnn_frontend::ExecutionPlan {
     for (auto& ecfg : engine_config) {
       try {
@@ -21,6 +27,7 @@ cudnn_frontend::ExecutionPlan getPlanFromHeuristics(
                         .build();
         return plan;
       } catch (cudnn_frontend::cudnnException& e) {
+        std::cout << e.what() << std::endl;
         continue;
       }
     }
@@ -35,107 +42,102 @@ cudnn_frontend::ExecutionPlan getPlanFromHeuristics(
 
 DNN::DNN() {
   cudnnCheckError(cudnnCreate(&handle));
-  // lets set up a 2d convolution: Conv -> bias -> relu
 
-  // input tensor NCHW: batch_size = 1, channels = 1, height = 28, width = 28
-  // must be of shape [N, num_conv_groups * input_feat_map, x, y]
-  constexpr int64_t xdim[4] = {1, 1, 28, 28};
-  constexpr int64_t xstrides[4] = {784, 784, 28, 1};
-  auto inTns = cudnn_frontend::TensorBuilder()
-                   .setDim(4, xdim)
-                   .setDataType(CUDNN_DATA_FLOAT)
-                   .setAlignment(4)
-                   .setId('i')
-                   .setStride(4, xstrides)
-                   .build();
-  std::cout << inTns.describe() << std::endl;
+  // TODO: I really hate how i'm passing the id's, this is just a super messy
+  // and hacky solution. Will refactor and clean eventually.
 
-  // weight tensor NCHW: batch_size = 1, channels  = 32, kx = 3, ky = 3
-  // must be of shape [out_feat_map * num_conv_groups, num_in_feat_maps, kx, ky]
-  constexpr int64_t wdim[4] = {32, 1, 3, 3};
-  constexpr int64_t wstrides[4] = {9, 9, 3, 1};
-  auto weightTns = cudnn_frontend::TensorBuilder()
-                       .setDim(4, wdim)
-                       .setDataType(CUDNN_DATA_FLOAT)
-                       .setAlignment(4)
-                       .setId('W')
-                       .setStride(4, wstrides)
-                       .build();
-  std::cout << weightTns.describe() << std::endl;
+  auto convOp1 = ml::fwd::Conv2d(
+      1, 1, 28, 28, 3, 32, '1', false, true, makeId('1', CONV_OP_ID, 'i'),
+      makeId('1', CONV_OP_ID, 'o'));  // 1[Ci, Co, Cw]
 
-  // output tensor NCHW: batch_size = 1, channels = 32, height = 28, width = 28
-  // must be of shape [N, num_conv_groups * out_feat_maps, height, x, y]
-  constexpr int64_t ydim[4] = {1, 32, 28, 28};
-  constexpr int64_t ystrides[4] = {25088, 784, 28, 1};
-  auto outTns = cudnn_frontend::TensorBuilder()
-                    .setDim(4, ydim)
-                    .setDataType(CUDNN_DATA_FLOAT)
-                    .setAlignment(4)
-                    .setId('o')
-                    .setStride(4, ystrides)
-                    .build();
-  std::cout << outTns.describe() << std::endl;
+  auto biasOp1 = ml::fwd::Bias(1, 32, 28, 28, '1', true, true,
+                               makeId('1', CONV_OP_ID, 'o'),
+                               makeId('1', BIAS_OP_ID, 'o'));  // 1[Bi, Bo, Bb]
 
-  constexpr int64_t convStride[2] = {1, 1};
-  constexpr int64_t convPadding[2] = {1, 1};
-  constexpr int64_t convDilation[2] = {1, 1};
-  auto convDesc = cudnn_frontend::ConvDescBuilder()
-                      .setComputeType(CUDNN_DATA_FLOAT)
-                      .setMathMode(CUDNN_CONVOLUTION)
-                      .setSpatialDimCount(2)
-                      .setSpatialStride(2, convStride)
-                      .setPrePadding(2, convPadding)
-                      .setPostPadding(2, convPadding)
-                      .setDilation(2, convDilation)
-                      .build();
-  std::cout << convDesc.describe() << std::endl;
+  auto reluOp1 = ml::fwd::ReLU(1, 32, 28, 28, '1', true, true,
+                               makeId('1', BIAS_OP_ID, 'o'),
+                               makeId('1', RELU_OP_ID, 'o'));  // 1[Ri, Ro]
 
-  auto convOp = cudnn_frontend::OperationBuilder(
-                    CUDNN_BACKEND_OPERATION_CONVOLUTION_FORWARD_DESCRIPTOR)
-                    .setxDesc(inTns)
-                    .setyDesc(outTns)
-                    .setwDesc(weightTns)
-                    .setcDesc(convDesc)
-                    .setAlpha(1.0f)
-                    .setBeta(0.0f)
-                    .build();
+  auto convOp2 = ml::fwd::Conv2d(
+      1, 32, 28, 28, 3, 64, '2', true, true, makeId('1', RELU_OP_ID, 'o'),
+      makeId('2', CONV_OP_ID, 'o'));  // 2[Ci, Co, Cw]
 
-  std::cout << convOp.describe() << std::endl;
+  auto biasOp2 = ml::fwd::Bias(1, 64, 28, 28, '2', true, true,
+                               makeId('2', CONV_OP_ID, 'o'),
+                               makeId('2', BIAS_OP_ID, 'o'));  // 2[Bi, Bo, Bb]
 
-  std::array<cudnn_frontend::Operation const*, 1> ops = {&convOp};
+  auto reluOp2 = ml::fwd::ReLU(1, 64, 28, 28, '2', true, true,
+                               makeId('2', BIAS_OP_ID, 'o'),
+                               makeId('2', RELU_OP_ID, 'o'));  // 2[Ri, Ro]
+
+  auto poolOp1 = ml::fwd::Pool(1, 64, 28, 28, 2, 2, CUDNN_RESAMPLE_MAXPOOL, '3',
+                               true, false, makeId('2', RELU_OP_ID, 'o'),
+                               makeId('3', POOL_OP_ID, 'o'));  //  3[Pi, Po]
+
+  // std::array<cudnn_frontend::Operation const*, 7> ops = {
+  //     &convOp1, &biasOp1, &reluOp1, &convOp2, &biasOp2, &reluOp2, &poolOp1};
+
+  std::array<cudnn_frontend::Operation const*, 2> ops = {
+      &convOp1, &biasOp1};  //, &biasOp1, &reluOp1, &convOp2, &biasOp2,
+                            //&reluOp2, &poolOp1};
+
   auto opGraph = cudnn_frontend::OperationGraphBuilder()
                      .setHandle(handle)
                      .setOperationGraph(ops.size(), ops.data())
                      .build();
 
-  std::cout << opGraph.describe() << " has " << opGraph.getEngineCount()
-            << " possible engines" << std::endl;
+  std::cout << opGraph.describe() << std::endl;
 
+  std::cout << "Getting plan...\n" << std::endl;
   auto plan = getPlanFromHeuristics(opGraph, handle);
+  plan.describe();
   execPlan = std::make_shared<cudnn_frontend::ExecutionPlan>(std::move(plan));
 
-  cudaMalloc(&devInTns, 28 * 28 * sizeof(float));
-  cudaMemset(devInTns, 1, 28 * 28 * sizeof(float));
+  std::cout << "Allocating..." << std::endl;
+  cudaMalloc(&devInput, 28 * 28 * sizeof(float));
+  cudaMemset(devInput, 1, 28 * 28 * sizeof(float));
   cudaCheckError();
 
-  cudaMalloc(&devOutTns, 32 * 28 * 28 * sizeof(float));
-  cudaMemset(devOutTns, 0, 32 * 28 * 28 * sizeof(float));
+  std::cout << "1..." << std::endl;
+  cudaMalloc(&devConvWeight1, 32 * 3 * 3 * sizeof(float));
+  cudaMemset(devConvWeight1, 0.5, 32 * 3 * 3 * sizeof(float));
   cudaCheckError();
 
-  cudaMalloc(&devWeightTns, 32 * 3 * 3 * sizeof(float));
-  cudaMemset(devWeightTns, 0.5, 32 * 3 * 3 * sizeof(float));
+  std::cout << "2..." << std::endl;
+  cudaMalloc(&devBias1, 32 * sizeof(float));
+  cudaMemset(devBias1, 0.5, 32 * sizeof(float));
   cudaCheckError();
+
+  std::cout << "3..." << std::endl;
+  cudaMalloc(&devConvWeight2, 64 * 32 * 3 * 3 * sizeof(float));
+  cudaMemset(devConvWeight2, 0.5, 64 * 32 * 3 * 3 * sizeof(float));
+  cudaCheckError();
+
+  std::cout << "4..." << std::endl;
+  cudaMalloc(&devBias2, 64 * sizeof(float));
+  cudaMemset(devBias2, 0.5, 64 * sizeof(float));
+  cudaCheckError();
+
+  std::cout << "5..." << std::endl;
+  cudaMalloc(&devPoolOut, 64 * 14 * 14 * sizeof(float));
+  cudaMemset(devPoolOut, 0.5, 64 * 14 * 14 * sizeof(float));
+  cudaCheckError();
+  std::cout << "Done" << std::endl;
 }
 
 void DNN::calculate() {
-  void* dataPtrs[] = {devInTns, devOutTns, devWeightTns};
-  int64_t uids[] = {'i', 'o', 'W'};
+  std::cout << "Creating packs..." << std::endl;
+  void* dataPtrs[] = {devInput,       devConvWeight1, devBias1,
+                      devConvWeight2, devBias2,       devPoolOut};
+  int64_t uids[] = {'1Ci', '1Cw', '1Bb', '2Cw', '2Bb', '3Po'};
 
+  std::cout << "Packing..." << std::endl;
   auto variantPack = cudnn_frontend::VariantPackBuilder()
-                         .setDataPointers(3, dataPtrs)
-                         .setUids(4, uids)
+                         .setDataPointers(6, dataPtrs)
+                         .setUids(6, uids)
                          .build();
 
+  std::cout << "Executing..." << std::endl;
   cudnnCheckError(cudnnBackendExecute(handle, execPlan->get_raw_desc(),
                                       variantPack.get_raw_desc()));
 }

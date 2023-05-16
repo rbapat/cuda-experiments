@@ -2,6 +2,7 @@
 #include <cudnn_frontend.h>
 
 #include "benchmark.h"
+#include "neuralnet.h"
 
 #define cudnnCheckError(err)                                   \
   {                                                            \
@@ -25,9 +26,12 @@ class DNN : public benchmark::TimedAlgorithm {
   cudnnHandle_t handle;
   std::shared_ptr<cudnn_frontend::ExecutionPlan> execPlan;
 
-  void* devInTns;
-  void* devOutTns;
-  void* devWeightTns;
+  void* devInput;
+  void* devConvWeight1;
+  void* devBias1;
+  void* devConvWeight2;
+  void* devBias2;
+  void* devPoolOut;
 };
 
 }  // namespace mnist
