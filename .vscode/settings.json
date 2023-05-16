@@ -71,6 +71,7 @@
     "cfenv": "cpp",
     "__nullptr": "cpp",
     "forward_list": "cpp",
-    "valarray": "cpp"
+    "valarray": "cpp",
+    "__tuple": "cpp"
   }
 }

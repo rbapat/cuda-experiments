@@ -5,7 +5,6 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "/usr/local/cuda/include",
-                "/home/rohan/Documents/Spring23/532/cuda-experiments/cuda/thirdparty"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

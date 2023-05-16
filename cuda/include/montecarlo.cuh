@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include "benchmark.h"
+#include "cudacommon.h"
 namespace montecarlo {
 class Naive : public benchmark::TimedAlgorithm {
  public:

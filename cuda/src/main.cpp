@@ -4,7 +4,7 @@
 #include "argparse.h"
 #include "benchmark.h"
 #include "matmul.cuh"
-#include "mnist_dnn.h"
+#include "mnist_cnn.h"
 #include "montecarlo.cuh"
 
 benchmark::TimedAlgorithm* getAlgorithm(args::Parser* ap, int argc,
@@ -19,8 +19,8 @@ benchmark::TimedAlgorithm* getAlgorithm(args::Parser* ap, int argc,
   } else if (!opType.compare("monte_carlo_pi")) {
     return new montecarlo::Naive(ap->get<int>(0), ap->get<int>(1),
                                  ap->get<int>(2));
-  } else if (!opType.compare("mnist_dnn")) {
-    return new mnist::DNN();
+  } else if (!opType.compare("mnist_cnn")) {
+    return new mnist::CNN(ap->get<int>(0));
   }
 
   return nullptr;
@@ -35,14 +35,14 @@ int main(int argc, char* argv[]) {
                     "int(threads per block)");
   ap.registerOption("monte_carlo_pi", "int(number of samples)",
                     "int(blocks per grid)", "int(threads per block)");
-  ap.registerOption("mnist_dnn");
+  ap.registerOption("mnist_cnn", "int(batch size)");
 
   auto algo = getAlgorithm(&ap, argc, argv);
   if (algo == nullptr) {
     return 0;
   }
 
-  constexpr int numReps = 100;
+  constexpr int numReps = 10;
   float avgTimeUs = benchmark::time_algorithm(algo, numReps);
 
   std::cout << algo->getName() << " took " << avgTimeUs

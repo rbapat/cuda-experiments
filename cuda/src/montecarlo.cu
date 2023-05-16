@@ -37,15 +37,13 @@ Naive::Naive(int _numSamples, int _blocksPerGrid, int _threadsPerBlock)
         "numSamples must be divisble by blocksPerGrid * threadsPerBlock");
   }
 
-  cudaMalloc(&randStates,
-             sizeof(curandState) * blocksPerGrid * threadsPerBlock);
-  cudaCheckError();
+  cudaCheckError(cudaMalloc(
+      &randStates, sizeof(curandState) * blocksPerGrid * threadsPerBlock));
 
   const dim3 gridSize(blocksPerGrid, 1, 1);
   const dim3 blockSize(threadsPerBlock, 1, 1);
 
   populateRandStates<<<gridSize, blockSize>>>(randStates);
-  cudaCheckError();
 }
 
 std::string_view Naive::getName() { return "Monte Carlo Pi Estimation"; }
@@ -53,10 +51,9 @@ std::string_view Naive::getName() { return "Monte Carlo Pi Estimation"; }
 float Naive::naiveReduce(int* simSums) {
   int* simSumsHost =
       (int*)malloc(blocksPerGrid * threadsPerBlock * sizeof(int));
-  cudaMemcpy(simSumsHost, simSums,
-             blocksPerGrid * threadsPerBlock * sizeof(int),
-             cudaMemcpyDeviceToHost);
-  cudaCheckError();
+  cudaCheckError(cudaMemcpy(simSumsHost, simSums,
+                            blocksPerGrid * threadsPerBlock * sizeof(int),
+                            cudaMemcpyDeviceToHost));
 
   int sum = 0;
   for (size_t i = 0; i < blocksPerGrid * threadsPerBlock; i++) {
@@ -69,8 +66,7 @@ float Naive::naiveReduce(int* simSums) {
 
 float Naive::cubReduce(int* simSums) {
   int* deviceOut;
-  cudaMalloc(&deviceOut, sizeof(int));
-  cudaCheckError();
+  cudaCheckError(cudaMalloc(&deviceOut, sizeof(int)));
 
   void* tempStorage = NULL;
   size_t tempStorageSize = 0;
@@ -79,15 +75,14 @@ float Naive::cubReduce(int* simSums) {
   CubDebugExit(cub::DeviceReduce::Sum(tempStorage, tempStorageSize, simSums,
                                       deviceOut, numItems));
 
-  cudaMalloc(&tempStorage, tempStorageSize);
-  cudaCheckError();
+  cudaCheckError(cudaMalloc(&tempStorage, tempStorageSize));
 
   CubDebugExit(cub::DeviceReduce::Sum(tempStorage, tempStorageSize, simSums,
                                       deviceOut, numItems));
 
   int hostOut = 0;
-  cudaMemcpy(&hostOut, deviceOut, sizeof(int), cudaMemcpyDeviceToHost);
-  cudaCheckError();
+  cudaCheckError(
+      cudaMemcpy(&hostOut, deviceOut, sizeof(int), cudaMemcpyDeviceToHost));
 
   cudaFree(deviceOut);
   cudaFree(tempStorage);
@@ -97,15 +92,14 @@ float Naive::cubReduce(int* simSums) {
 
 void Naive::calculate() {
   int* simSums = nullptr;
-  cudaMalloc(&simSums, blocksPerGrid * threadsPerBlock * sizeof(int));
-  cudaCheckError();
+  cudaCheckError(
+      cudaMalloc(&simSums, blocksPerGrid * threadsPerBlock * sizeof(int)));
 
   const int repsPerThread = numSamples / (blocksPerGrid * threadsPerBlock);
   const dim3 gridSize(blocksPerGrid, 1, 1);
   const dim3 blockSize(threadsPerBlock, 1, 1);
 
   estimate_pi<<<gridSize, blockSize>>>(randStates, simSums, repsPerThread);
-  cudaCheckError();
 
   float pi = cubReduce(simSums);
 

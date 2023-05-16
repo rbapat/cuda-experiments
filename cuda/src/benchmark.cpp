@@ -15,6 +15,7 @@ float time_algorithm(TimedAlgorithm* algo, int numReps) {
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
+    cudaDeviceSynchronize();
 
     float milliseconds = 0;
     cudaEventElapsedTime(&milliseconds, start, stop);
