@@ -10,7 +10,7 @@ Bias::Bias(cublasHandle_t cublasHandle, int numChannels)
                                              inDimA, inStrideA));
 
   cudaCheckError(cudaMalloc(&devBias, numChannels * sizeof(float)));
-  cudaCheckError(cudaMemset(devBias, 0, numChannels * sizeof(float)));
+  cudaCheckError(cudaMemset(devBias, 1, numChannels * sizeof(float)));
 }
 
 void Bias::fwd(cudnnHandle_t handle, cudnnTensorDescriptor_t outDesc,

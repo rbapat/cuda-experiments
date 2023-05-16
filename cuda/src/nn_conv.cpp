@@ -17,7 +17,7 @@ Conv2d::Conv2d(cublasHandle_t cublasHandle, const int batchSize, const int rows,
   filterSize =
       outChannels * inChannels * kernelSize * kernelSize * sizeof(float);
   cudaCheckError(cudaMalloc(&devFilter, filterSize));
-  cudaCheckError(cudaMemset(devFilter, 0, filterSize));
+  cudaCheckError(cudaMemset(devFilter, 0.f, filterSize));
 
   // TODO: move the rest of this into the fwd/bwd functions
   ml::initStrides(inDimA, inStrideA, batchSize, inChannels, rows, cols);

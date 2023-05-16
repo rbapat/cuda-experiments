@@ -12,14 +12,14 @@ Softmax::Softmax(cudnnHandle_t cudnnHandle, int batchSize, int numPreds)
 
 void Softmax::fwd(void* in, void* out) {
   cudnnCheckError(cudnnSoftmaxForward(cudnnHandle, CUDNN_SOFTMAX_ACCURATE,
-                                      CUDNN_SOFTMAX_MODE_INSTANCE, &alpha, desc,
+                                      CUDNN_SOFTMAX_MODE_CHANNEL, &alpha, desc,
                                       in, &beta, desc, out));
 }
 
 void Softmax::bwdData(void* in, void* out, void* dLdOut, void* dLdIn) {
-  cudnnCheckError(cudnnSoftmaxBackward(
-      cudnnHandle, CUDNN_SOFTMAX_ACCURATE, CUDNN_SOFTMAX_MODE_INSTANCE, &alpha,
-      desc, out, desc, dLdOut, &beta, desc, dLdIn));
+  cudnnCheckError(cudnnSoftmaxBackward(cudnnHandle, CUDNN_SOFTMAX_ACCURATE,
+                                       CUDNN_SOFTMAX_MODE_CHANNEL, &alpha, desc,
+                                       out, desc, dLdOut, &beta, desc, dLdIn));
 }
 
 Softmax::~Softmax() { cudnnCheckError(cudnnDestroyTensorDescriptor(desc)); }

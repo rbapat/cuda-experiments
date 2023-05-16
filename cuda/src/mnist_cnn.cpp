@@ -8,10 +8,11 @@ CNN::CNN(int batchSize) : batchSize(batchSize) {
 }
 
 void CNN::writeDatasetToDevice() {
-  mnist::MNIST_dataset<std::vector, std::vector<uint8_t>, uint8_t> dataset =
-      mnist::read_dataset<std::vector, std::vector, uint8_t, uint8_t>(
+  mnist::MNIST_dataset<std::vector, std::vector<float>, uint8_t> dataset =
+      mnist::read_dataset<std::vector, std::vector, float, uint8_t>(
           MNIST_DATA_LOCATION);
 
+  normalize_dataset(dataset);
   numTrain = dataset.training_images.size();
   numTest = dataset.test_images.size();
 
@@ -28,10 +29,10 @@ void CNN::writeDatasetToDevice() {
 }
 
 void CNN::populateDeviceData(int numSamples,
-                             std::vector<std::vector<uint8_t>> hostImages,
+                             std::vector<std::vector<float>> hostImages,
                              std::vector<uint8_t> hostLabels,
-                             uint8_t** deviceImages, uint8_t** deviceLabels) {
-  int stride = 28 * 28 * sizeof(uint8_t);
+                             float** deviceImages, uint8_t** deviceLabels) {
+  int stride = 28 * 28 * sizeof(float);
 
   std::vector<int> indices = std::vector<int>(numSamples);
   std::iota(indices.begin(), indices.end(), 0);
@@ -43,11 +44,11 @@ void CNN::populateDeviceData(int numSamples,
 
   for (size_t i = 0; i < numSamples; i++) {
     size_t index = indices[i];
-    cudaCheckError(cudaMemcpy(*deviceImages + stride * index,
+    cudaCheckError(cudaMemcpy((*deviceImages) + 28 * 28 * i,
                               hostImages[index].data(), stride,
                               cudaMemcpyHostToDevice));
 
-    cudaCheckError(cudaMemcpy(*deviceLabels + sizeof(uint8_t) * index,
+    cudaCheckError(cudaMemcpy((*deviceLabels) + sizeof(uint8_t) * i,
                               &hostLabels[index], sizeof(uint8_t),
                               cudaMemcpyHostToDevice));
   }

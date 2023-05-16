@@ -35,24 +35,19 @@ SimpleCNN::SimpleCNN(int batchSize) : batchSize(batchSize) {
                             conv2->getWorkspaceSize(cudnnHandle)});
   cudaCheckError(cudaMalloc(&workspace, workspaceSize));
 
-  // allocate space for intermediate tensors
-  // cudaCheckError(cudaMalloc(
-  //     &input, batchSize * 28 * 28 * sizeof(float)));  // [1, 1, 28, 28]
-  cudaCheckError(cudaMalloc(
-      &conv1Out, batchSize * 32 * 28 * 28 * sizeof(float)));  // [1, 32, 28, 28]
-  cudaCheckError(cudaMalloc(
-      &relu1Out, batchSize * 32 * 28 * 28 * sizeof(float)));  // [1, 32, 28, 28]
-  cudaCheckError(cudaMalloc(
-      &pool1Out, batchSize * 32 * 14 * 14 * sizeof(float)));  // [1, 32, 14, 14]
-  cudaCheckError(cudaMalloc(
-      &conv2Out, batchSize * 64 * 14 * 14 * sizeof(float)));  // [1, 64, 14, 14]
-  cudaCheckError(cudaMalloc(
-      &relu2Out, batchSize * 64 * 14 * 14 * sizeof(float)));  // [1, 64, 14, 14]
-  cudaCheckError(cudaMalloc(
-      &pool2Out, batchSize * 64 * 7 * 7 * sizeof(float)));  // [1, 64, 7, 7]
-  cudaCheckError(cudaMalloc(&linear1Out, batchSize * 256 * sizeof(float)));
   cudaCheckError(
-      cudaMalloc(&relu3Out, batchSize * 256 * sizeof(float)));  // [1, 256]
+      cudaMalloc(&conv1Out, batchSize * 32 * 28 * 28 * sizeof(float)));
+  cudaCheckError(
+      cudaMalloc(&relu1Out, batchSize * 32 * 28 * 28 * sizeof(float)));
+  cudaCheckError(
+      cudaMalloc(&pool1Out, batchSize * 32 * 14 * 14 * sizeof(float)));
+  cudaCheckError(
+      cudaMalloc(&conv2Out, batchSize * 64 * 14 * 14 * sizeof(float)));
+  cudaCheckError(
+      cudaMalloc(&relu2Out, batchSize * 64 * 14 * 14 * sizeof(float)));
+  cudaCheckError(cudaMalloc(&pool2Out, batchSize * 64 * 7 * 7 * sizeof(float)));
+  cudaCheckError(cudaMalloc(&linear1Out, batchSize * 256 * sizeof(float)));
+  cudaCheckError(cudaMalloc(&relu3Out, batchSize * 256 * sizeof(float)));
   cudaCheckError(cudaMalloc(&linear2Out, batchSize * 10 * sizeof(float)));
   cudaCheckError(cudaMalloc(&softmaxOut, batchSize * 10 * sizeof(float)));
 
@@ -113,6 +108,7 @@ SimpleCNN::SimpleCNN(int batchSize) : batchSize(batchSize) {
                                       (float*)loss, sumLoss, batchSize));
 
   cudaCheckError(cudaMalloc(&tempStorage, tempStorageSize));
+  cudaCheckError(cudaDeviceSynchronize());
 }
 
 __global__ void crossEntropyLoss(float* softmaxProbs, uint8_t* labels,
@@ -151,9 +147,6 @@ float SimpleCNN::run(void* input, uint8_t* labels, float learningRate) {
   bias4->fwd(cudnnHandle, desc4, linear2Out);
   softmax->fwd(linear2Out, softmaxOut);
 
-  //   cudaCheckError(cudaMemset(dLoss, 1, batchSize * 10 * sizeof(float)));
-
-  // def should optimize this
   dim3 gridDim((batchSize / 128) + 1);
   dim3 blockDim(128);
   crossEntropyLoss<<<gridDim, blockDim>>>((float*)softmaxOut, labels, batchSize,
@@ -200,7 +193,7 @@ float SimpleCNN::run(void* input, uint8_t* labels, float learningRate) {
   CubDebugExit(cub::DeviceReduce::Sum(tempStorage, tempStorageSize,
                                       (float*)loss, sumLoss, batchSize));
 
-  cudaDeviceSynchronize();
+  cudaCheckError(cudaDeviceSynchronize());
   float hostOut = 0;
   cudaCheckError(
       cudaMemcpy(&hostOut, sumLoss, sizeof(float), cudaMemcpyDeviceToHost));

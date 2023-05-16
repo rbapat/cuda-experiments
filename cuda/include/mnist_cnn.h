@@ -10,8 +10,9 @@
 #include "cudacommon.h"
 #include "simplecnn.cuh"
 #include "thirdparty/mnist/mnist_reader.hpp"
+#include "thirdparty/mnist/mnist_utils.hpp"
 
-#define MNIST_DATA_LOCATION "/home/rohan/projects/cuda-experiments/cuda/assets"
+#define MNIST_DATA_LOCATION "/home/rohan/projects/cuda-experiments/data/MNIST"
 
 namespace mnist {
 
@@ -25,13 +26,13 @@ class CNN : public benchmark::TimedAlgorithm {
  private:
   void writeDatasetToDevice();
   void populateDeviceData(int numSamples,
-                          std::vector<std::vector<uint8_t>> hostImages,
-                          std::vector<uint8_t> hostLabels,
-                          uint8_t** deviceImages, uint8_t** deviceLabels);
+                          std::vector<std::vector<float>> hostImages,
+                          std::vector<uint8_t> hostLabels, float** deviceImages,
+                          uint8_t** deviceLabels);
 
-  uint8_t* devTrainImages;
+  float* devTrainImages;
   uint8_t* devTrainLabels;
-  uint8_t* devTestImages;
+  float* devTestImages;
   uint8_t* devTestLabels;
 
   ml::SimpleCNN* cnn;
