@@ -12,7 +12,7 @@
 #include "thirdparty/mnist/mnist_reader.hpp"
 #include "thirdparty/mnist/mnist_utils.hpp"
 
-#define MNIST_DATA_LOCATION "/home/rohan/projects/cuda-experiments/data/MNIST"
+#define MNIST_DATA_LOCATION "/home/rohan/projects/cuda-experiments/cuda/assets"
 
 namespace mnist {
 
