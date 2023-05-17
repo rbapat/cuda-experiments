@@ -73,6 +73,7 @@
     "forward_list": "cpp",
     "valarray": "cpp",
     "__tuple": "cpp",
-    "__config": "cpp"
+    "__config": "cpp",
+    "__locale": "cpp"
   }
 }

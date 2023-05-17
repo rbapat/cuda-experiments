@@ -13,8 +13,7 @@ def get_dataset():
     X = iris.data
     Y = np.where(iris.target == 0, 1, 0)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2)
-    return cp.array(X_train), cp.array(X_test), cp.array(y_train), cp.array(y_test)
+    return cp.array(X), cp.array(Y)
 
 
 def sigmoid(X):
@@ -24,12 +23,13 @@ def sigmoid(X):
 def logistic_regression_loss(W, X, y):
     N, D = X.shape
     y_hat = sigmoid(X @ W)
-    y_hat = cp.clip(y_hat, 0.0001, 0.9999)
+    # y_hat = cp.clip(y_hat, 0.0001, 0.9999)
 
-    loss = (y * cp.log(y_hat) + (1 - y) * cp.log(1 - y_hat)) / -N
+    # loss = (y * cp.log(y_hat) + (1 - y) * cp.log(1 - y_hat)) / -N
     grads = (X.T @ (y_hat - y)) / N
 
-    return cp.sum(loss), grads
+    # return cp.sum(loss), grads
+    return grads
 
 
 def train(X, y, learning_rate, num_epochs):
@@ -38,19 +38,20 @@ def train(X, y, learning_rate, num_epochs):
     W = 1e-4 * cp.random.randn(D)
 
     for i in range(num_epochs):
-        loss, grads = logistic_regression_loss(W, X, y)
+        # loss, grads = logistic_regression_loss(W, X, y)
+        grads = logistic_regression_loss(W, X, y)
         W -= learning_rate * grads
 
 
 def main():
-    X_train, X_test, y_train, y_test = get_dataset()
+    X, Y = get_dataset()
 
     for num_epochs in NUM_EPOCHS:
         avg_time = benchmark(
             train,
             (
-                X_train,
-                y_train,
+                X,
+                Y,
                 1,
                 num_epochs,
             ),

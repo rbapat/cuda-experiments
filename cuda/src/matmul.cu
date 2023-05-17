@@ -42,16 +42,8 @@ Naive::~Naive() {
   cudaFree(out);
 }
 
-Cublas::Cublas(int _matrixDim, int _threadsPerBlock)
-    : matrixDim(_matrixDim),
-      threadsPerBlock(_threadsPerBlock),
-      alpha(1.0f),
-      beta(1.0f) {
-  if (matrixDim % threadsPerBlock != 0) {
-    throw std::invalid_argument(
-        "matrixDim must be a multiple of threadsPerBlock");
-  }
-
+Cublas::Cublas(int _matrixDim)
+    : matrixDim(_matrixDim), alpha(1.0f), beta(0.0f) {
   mat1 = matrix::generateRandomMatrixCuda(matrixDim);
   mat2 = matrix::generateRandomMatrixCuda(matrixDim);
   out = matrix::allocateEmptyMatrixCuda(matrixDim);

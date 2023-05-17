@@ -13,12 +13,9 @@ def get_dataset(device):
     X = iris.data
     Y = np.where(iris.target == 0, 1, 0)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2)
     return (
-        torch.from_numpy(X_train).to(device).to(torch.float32),
-        torch.from_numpy(X_test).to(device).to(torch.float32),
-        torch.from_numpy(y_train).to(device).to(torch.float32),
-        torch.from_numpy(y_test).to(device).to(torch.float32),
+        torch.from_numpy(X).to(device).to(torch.float32),
+        torch.from_numpy(Y).to(device).to(torch.float32),
     )
 
 
@@ -29,12 +26,13 @@ def sigmoid(X):
 def logistic_regression_loss(W, X, y):
     N, D = X.shape
     y_hat = sigmoid(X @ W)
-    y_hat = torch.clip(y_hat, 0.0001, 0.9999)
+    # y_hat = torch.clip(y_hat, 0.0001, 0.9999)
 
-    loss = (y * torch.log(y_hat) + (1 - y) * torch.log(1 - y_hat)) / -N
+    # loss = (y * torch.log(y_hat) + (1 - y) * torch.log(1 - y_hat)) / -N
     grads = (X.T @ (y_hat - y)) / N
 
-    return torch.sum(loss), grads
+    # return torch.sum(loss), grads
+    return grads
 
 
 def train(X, y, learning_rate, num_epochs, device):
@@ -43,19 +41,20 @@ def train(X, y, learning_rate, num_epochs, device):
     W = 1e-4 * torch.randn(D, device=device)
 
     for i in range(num_epochs):
-        loss, grads = logistic_regression_loss(W, X, y)
+        # loss, grads = logistic_regression_loss(W, X, y)
+        grads = logistic_regression_loss(W, X, y)
         W -= learning_rate * grads
 
 
 def main():
     device = torch.device("cuda")
-    X_train, X_test, y_train, y_test = get_dataset(device)
+    X, Y = get_dataset(device)
 
     for num_epochs in NUM_EPOCHS:
         t0 = benchmark.Timer(
             stmt=f"train(X, y, 1, {num_epochs}, device)",
             setup="from __main__ import train",
-            globals={"X": X_train, "y": y_train, "device": device},
+            globals={"X": X, "y": Y, "device": device},
         )
 
         print(

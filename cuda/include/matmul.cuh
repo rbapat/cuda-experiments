@@ -25,14 +25,13 @@ class Naive : public benchmark::TimedAlgorithm {
 
 class Cublas : public benchmark::TimedAlgorithm {
  public:
-  Cublas(int _matrixDim, int _threadsPerBlock);
+  Cublas(int _matrixDim);
   std::string_view getName();
   void calculate();
   ~Cublas();
 
  private:
   int matrixDim;
-  int threadsPerBlock;
 
   float* mat1;
   float* mat2;

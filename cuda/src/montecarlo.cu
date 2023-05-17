@@ -27,21 +27,11 @@ Naive::Naive(int _numSamples, int _blocksPerGrid, int _threadsPerBlock)
     : numSamples(_numSamples),
       blocksPerGrid(_blocksPerGrid),
       threadsPerBlock(_threadsPerBlock) {
-  if (numSamples % threadsPerBlock != 0) {
-    throw std::invalid_argument(
-        "numSamples must be divisible by threadsPerBlock");
-  }
-
-  if (numSamples % (blocksPerGrid * threadsPerBlock) != 0) {
-    throw std::invalid_argument(
-        "numSamples must be divisble by blocksPerGrid * threadsPerBlock");
-  }
-
   cudaCheckError(cudaMalloc(
       &randStates, sizeof(curandState) * blocksPerGrid * threadsPerBlock));
 
-  const dim3 gridSize(blocksPerGrid, 1, 1);
-  const dim3 blockSize(threadsPerBlock, 1, 1);
+  const dim3 gridSize(blocksPerGrid);
+  const dim3 blockSize(threadsPerBlock);
 
   populateRandStates<<<gridSize, blockSize>>>(randStates);
 }
@@ -87,7 +77,7 @@ float Naive::cubReduce(int* simSums) {
   cudaFree(deviceOut);
   cudaFree(tempStorage);
 
-  return 4.f * hostOut / numSamples;
+  return 4.f * hostOut / (numSamples * numItems);
 }
 
 void Naive::calculate() {
@@ -95,14 +85,13 @@ void Naive::calculate() {
   cudaCheckError(
       cudaMalloc(&simSums, blocksPerGrid * threadsPerBlock * sizeof(int)));
 
-  const int repsPerThread = numSamples / (blocksPerGrid * threadsPerBlock);
+  const int repsPerThread = numSamples;
   const dim3 gridSize(blocksPerGrid, 1, 1);
   const dim3 blockSize(threadsPerBlock, 1, 1);
 
   estimate_pi<<<gridSize, blockSize>>>(randStates, simSums, repsPerThread);
 
   float pi = cubReduce(simSums);
-
   cudaFree(simSums);
 }
 
